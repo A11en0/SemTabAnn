@@ -1,0 +1,139 @@
+# customize
+third_party/
+.cursor/
+.llm_cache/
+.llm_cache_/
+.llm_cache*/
+.cache/
+logs/
+docs/
+.llm_predictions_cache/
+.llm_cache/
+.test_cache/
+.llm_preds_cache/
+sample_tables/
+model_simple/
+data/
+model/
+eval/
+test/
+output/
+output_/
+swanlog/
+legacy/
+fig*/
+transformers/
+test_outputs/
+sato/
+*.png
+
+GEMINI.md
+
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# C extensions
+*.so
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# VS Code settings
+.vscode/
+
+# Environments
+.env
+.venv/
+venv/
+ENV/
+env/
+*.env
+
+# PyInstaller
+*.manifest
+*.spec
+
+# mypy
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# Pyre type checker
+.pyre/
+
+# Pytype
+.pytype/
+
+# Unit test / coverage reports
+htmlcov/
+.tox/
+.nox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+.hypothesis/
+
+# pyenv
+.python-version
+
+# pipenv
+Pipfile.lock
+
+# Poetry
+poetry.lock
+
+# Jupyter Notebook checkpoints
+.ipynb_checkpoints/
+
+# VSCode
+.vscode/
+
+# MacOS
+.DS_Store
+
+# Logs and temp files
+*.log
+*.out
+*.tmp
+*.bak
+
+# Model checkpoints / data
+checkpoints/
+*.ckpt
+*.h5
+*.pth
+*.pt
+*.onnx
+
+# Datasets (adjust if you want to keep some)
+data/
+
+# Output files
+outputs/
+results/
+runs/
+
+# Experiment tracking
+wandb/
+mlruns/
+tensorboard/
+
+# Docker
+*.pid
+*.pid.lock
+docker-compose.override.yml
+
+# PyCharm
+.idea/
+
+# Slurm / cluster job outputs
+slurm-*.out
+
+# VS Code workspace files
+*.code-workspace
+configs/config_default.yaml
