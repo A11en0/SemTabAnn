@@ -126,11 +126,7 @@ class SatoCVTablewiseDataset(Dataset):
             # test
             filepath = os.path.join(base_dirpath, basename.format(cv))
             df = pd.read_csv(filepath)
-
-        # [CLS] [SEP] will be automatically added, so max_length should be +2
-        # TODO: This will be different, depending on how many columns to have
-
-        # For learning curve
+        
         num_tables = len(df.groupby("table_id"))
         valid_index = int(num_tables * 0.8)
         num_train = int(train_ratio * num_tables * 0.8)
@@ -188,7 +184,6 @@ class SatoCVTablewiseDataset(Dataset):
             "table_id": row["table_id"],
             "col_idx": col_indices  # Column indices within the table
         }
-        # "cls_indexes": self.table_df.iloc[idx]["cls_indexes"]}
 
 
 class TURLColTypeColwiseDataset(Dataset):

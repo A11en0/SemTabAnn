@@ -162,8 +162,8 @@ class ResponseCache:
 
 def export_col_meta_from_multipll_dataset(train_dataset, save_dir):
     """
-    导出包含 ground-truth 的 col_meta.json
-    每个样本格式：
+    Export col_meta.json containing ground-truth
+    Sample format:
       {
         "g_id": int,
         "table_id": str,
@@ -180,12 +180,12 @@ def export_col_meta_from_multipll_dataset(train_dataset, save_dir):
         col_names = row.get("col_names", None)
         labels = row.get("label_tensor", None)  # optional, may contain ground truth
         candidate_labels = row.get("candidate_labels", None)
-        
+
         # tensor → list
         if isinstance(g_ids, torch.Tensor):
             g_ids = g_ids.tolist()
 
-        # 如果没有列名，用 col_indices 占位
+        # If no column names, use col_indices as placeholder
         if col_names is None:
             col_names = [f"Column {i+1}" for i in range(len(g_ids))]
 
@@ -204,7 +204,7 @@ def export_col_meta_from_multipll_dataset(train_dataset, save_dir):
     with open(save_path, "w", encoding="utf-8") as f:
         json.dump(rows, f, ensure_ascii=False, indent=2)
     
-    print(f"✅ Exported {len(rows)} entries with ground-truth to {save_path}")
+    print(f"Exported {len(rows)} entries with ground-truth to {save_path}")
 
 # def export_col_meta_from_multipll_dataset(train_dataset, save_dir: str):
 #     """

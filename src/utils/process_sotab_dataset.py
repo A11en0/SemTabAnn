@@ -34,14 +34,14 @@ print(len(type_labels))
 import os
 
 data_path = '/data2/yzy/code/cta/effective-fiesta/data/sotab_v2'
-os.makedirs(data_path, exist_ok=True)  # ✅ 自动创建目录（如果已存在则跳过）
+os.makedirs(data_path, exist_ok=True)  # Automatically create directory (skip if already exists)
 
 file_path = os.path.join(data_path, 'type_ontology.txt')
 with open(file_path, 'w') as f:
     for label in type_labels:
         f.write(label + '\n')
 
-print(f"文件已保存到: {file_path}")
+print(f"File saved to: {file_path}")
 
 #Simple Preprocessing
 

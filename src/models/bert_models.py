@@ -414,8 +414,8 @@ class BertForMultiOutputClassification(BertPreTrainedModel):
     
     def forward_classifier(self, features: torch.Tensor) -> torch.Tensor:
         """
-        专门用于 Manifold MixUp 的接口。
-        接收混合后的 Embedding (features)，经过 Dropout 和 Classifier 输出 Logits。
+        Interface specifically designed for Manifold MixUp.
+        Receives mixed Embedding (features), passes through Dropout and Classifier to output Logits.
         """
         
         x = self.dropout(features)

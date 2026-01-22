@@ -1,16 +1,16 @@
 """
-HuggingFace Trainer 实现模块
+HuggingFace Trainer Implementation Module
 
-这个模块包含了基于 HuggingFace Trainer 的现代化训练器实现，
-用于替代现有的自定义训练器系统。
+This module contains modern trainer implementations based on HuggingFace Trainer,
+designed to replace the existing custom trainer system.
 
-主要组件：
-- BaseHFTrainer: 基础 HF 训练器
-- PLLHFTrainer: 支持 PLL 的 HF 训练器
-- StandardHFTrainer: 标准 HF 训练器
-- DoduoHFTrainer: DoDuo HF 训练器
-- SelfDistillationHFTrainer: 自蒸馏 HF 训练器
-- TrainerFactory: 训练器工厂函数
+Main Components:
+- BaseHFTrainer: Base HF trainer
+- PLLHFTrainer: PLL-enabled HF trainer
+- StandardHFTrainer: Standard HF trainer
+- DoduoHFTrainer: DoDuo HF trainer
+- SelfDistillationHFTrainer: Self-distillation HF trainer
+- TrainerFactory: Trainer factory functions
 """
 
 from .base_hf_trainer import BaseHFTrainer

@@ -2,7 +2,7 @@ import os
 import re
 
 def extract_f1_from_log(file_path, tail_lines=50):
-    """从单个日志文件末尾提取 Micro/Macro F1"""
+    """Extract Micro/Macro F1 from the end of a single log file"""
     with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
         lines = f.readlines()[-tail_lines:]
     text = ''.join(lines)
@@ -11,7 +11,7 @@ def extract_f1_from_log(file_path, tail_lines=50):
     return float(micro.group(1)) if micro else None, float(macro.group(1)) if macro else None
 
 def scan_directory(root_dir, suffix=".log"):
-    """递归扫描目录，提取每个日志文件的结果"""
+    """Recursively scan directory and extract results from each log file"""
     results = []
     for dirpath, _, filenames in os.walk(root_dir):
         for fname in filenames:

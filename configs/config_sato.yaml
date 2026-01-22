@@ -1,0 +1,102 @@
+# Configuration
+# === Basic Training Parameters ===
+output_dir: "./outputs/default_sato"
+num_train_epochs: 30
+learning_rate: 2e-5
+weight_decay: 0.01
+warmup_ratio: 0.1
+warmup_epochs: 5
+per_device_eval_batch_size: 64
+per_device_train_batch_size: 64
+gradient_accumulation_steps: 2 # Enable gradient accumulation
+trainer_mode: "acd"
+correction_type: "glc"
+use_aum: false
+
+# === Advanced Training Features ===
+fp16: false
+bf16: true
+max_length: 32
+model_name: "~/pre-train/bert-base-uncased"
+
+# === Data Parameters ===
+num_classes: 78
+dataset_name: "sato"
+dataset_type: "sato"
+data_dir: "./data/stardard_data/sato_all"
+data_dir: "./data/stardard_data/sotabv2_all_cta"
+
+# === Evaluation Parameters ===
+save_predictions: true
+save_model: true
+save_config: true
+eval_steps: 0.05
+save_steps: 0.05
+logging_strategy: "steps"
+logging_steps: 1
+logging_dir: "./outputs/default"
+eval_strategy: "epoch"
+save_strategy: "epoch"
+load_best_model_at_end: true
+metric_for_best_model: "eval_micro_f1"
+greater_is_better: true
+save_total_limit: 5
+
+seed: 42
+
+log_level: "INFO"
+
+device: "cuda"
+num_workers: 0
+
+enable_llm_bootstrapping: true
+max_workers: 16
+
+llm_bootstrapper:
+  provider: "openai"
+  api_key: ""
+  api_models: ["gpt-5-mini"]
+  default_provider: "openai"
+  providers:
+    openai:
+      api_key: ""
+      base_url: "https://api.openai.com/v1"
+      api_models: ["gpt-4o-mini", "gpt-5-mini"]
+    qwen:
+      api_key: ""
+      base_url: "https://dashscope.aliyuncs.com/compatible-mode/v1"
+      api_models: ["qwen3-max"]
+
+  sample_size: 10
+  temperature: 0.7
+  max_tokens: 1000
+  top_p: 0.95
+  presence_penalty: 0.0
+  frequency_penalty: 0.0
+  retry_attempts: 3
+  retry_delay: 1.0
+  timeout: 30
+  candidate_set_size: 5
+  cache_enabled: true
+  validate_responses: true
+  fallback_on_error: true
+  llm_save_dir: "./outputs/default"
+
+  # Single column specific configuration
+  max_column_data_length: 500 # Maximum length of column data for single column prompts
+  max_single_column_candidates: 5 # Maximum number of candidates for single column prediction
+
+single_column_mode: false
+use_colwise_dataset: false
+
+inference_mode: false
+
+use_lora: false
+lora_r: 32
+lora_alpha: 32
+lora_dropout: 0.05
+lora_target_modules:
+  ["q_proj", "k_proj", "v_proj", "o_proj", "gate_proj", "up_proj", "down_proj"]
+
+project_name: "Proden"
+experiment_name: "default"

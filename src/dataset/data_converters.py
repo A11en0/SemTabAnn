@@ -171,9 +171,9 @@ class MultiPLLDataset:
     """
     Multi-column PLL Dataset for ProDEN with Augmentation (Back-Translation / Shuffle+Dropout).
 
-    改动：
-      - 增加 input_ids_bt (augment view): 对列内元素进行 Shuffle 和 Dropout。
-      - 增加 cls_indexes_bt: 增强视图对应的 CLS 位置。
+    Changes:
+      - Added input_ids_bt (augment view): Shuffle and Dropout on column elements.
+      - Added cls_indexes_bt: CLS positions corresponding to augmented views.
     """
 
     def __init__(self, instances, tokenizer, max_length, device, type_ontology, config, threshold_ratio=0.01):
@@ -188,19 +188,19 @@ class MultiPLLDataset:
         self.device = device
         self.model_name = config.model_name.lower()
 
-        # 是否启用 AUM 模式
+        # Whether to enable AUM mode
         self.use_aum = bool(getattr(config, "use_aum", False) and threshold_ratio > 0)
         print(f"[AUM] Use AUM mode: {self.use_aum}")
-        
+
         # ==========================================================
-        # 类别数 +1 (为 AUM 预留一个 "Noise" 类别)
+        # Number of classes +1 (Reserve a "Noise" class for AUM)
         self.num_real_classes = len(type_ontology)
         self.noise_class_id = self.num_real_classes if self.use_aum else None
         self.threshold_ratio = threshold_ratio if self.use_aum else 0.0
         # self.num_classes = self.num_real_classes + (1 if self.use_aum else 0)
         # ==========================================================
 
-        # 按 table_id 分组
+        # Group by table_id
         table_groups = {}
         for pll_instance in instances:
             table_id = pll_instance.table_id
@@ -209,15 +209,15 @@ class MultiPLLDataset:
             table_groups[table_id].append(pll_instance)
 
         data_list = []
-        global_col_counter = 0  # 全局列计数器
+        global_col_counter = 0  # Global column counter
 
-        # 用于后续分析，记录哪些 ID 被选为了阈值样本
+        # Record which IDs were selected as threshold samples for subsequent analysis
         self.threshold_sample_ids = []
         
         for table_id, table_pll_instances in tqdm(table_groups.items(), desc="Building MultiPLL Dataset"):
-            # 保持列顺序
+            # Maintain column order
             table_pll_instances.sort(key=lambda x: x.col_idx)
-            
+
             if len(table_pll_instances) > 10:
                 continue
 
@@ -232,7 +232,7 @@ class MultiPLLDataset:
             is_threshold_flags = []
 
             for pll_instance in table_pll_instances:
-                # 1. 获取原始列数据 (List)
+                # 1. Get original column data (List)
                 if hasattr(pll_instance.column_features, 'tolist'):
                     col_data_raw = pll_instance.column_features.dropna().astype(str).tolist()
                 elif isinstance(pll_instance.column_features, list):
@@ -240,30 +240,31 @@ class MultiPLLDataset:
                 else:
                     col_data_raw = [str(pll_instance.column_features)]
 
-                # 2. 生成原始视图 Token
+                # 2. Generate original view tokens
                 tokens_orig = self._get_token_ids(col_data_raw, augment=False)
                 token_ids_list.append(tokens_orig)
 
-                # 3. 生成增强视图 Token (Shuffle + Dropout) -> input_ids_bt
-                #    注意：增强视图只用于计算一致性 Loss，不用于 GT Label 匹配，但顺序要和 columns 对应
+                # 3. Generate augmented view tokens (Shuffle + Dropout) -> input_ids_bt
+                #    Note: Augmented view is only used for consistency loss calculation, not for GT label matching,
+                #          but the order must correspond to columns
                 tokens_bt = self._get_token_ids(col_data_raw, augment=True)
                 token_ids_list_bt.append(tokens_bt)
 
-                # 4. 标签处理 (保持不变)
+                # 4. Label processing (unchanged)
                 cand_ids = [self._label_to_class_id(label) for label in getattr(pll_instance, "candidate_set", []) if label is not None]
                 if len(cand_ids) == 0:
-                    # Fallback: 没有候选时，用真值填充，避免弱标签为空
+                    # Fallback: If no candidates, fill with true value to avoid empty weak labels
                     cand_ids = [self._label_to_class_id(pll_instance.column_name)]
                 candidate_labels_per_col.append(cand_ids)
-                
+
                 true_class_id = self._label_to_class_id(pll_instance.column_name)
                 weak_class_id = cand_ids[0]
                 # ==========================================================
-                # 掷骰子决定是否作为 Threshold Sample（仅 AUM 模式下启用）
-                # 逻辑：如果是阈值样本，强制把 GT 改为 Noise Class
+                # Decide whether to use as Threshold Sample (enabled only in AUM mode)
+                # Logic: If threshold sample, force GT to Noise Class
                 is_threshold = False
                 if self.use_aum and self.threshold_ratio > 0 and random.random() < self.threshold_ratio:
-                    weak_class_id = self.noise_class_id # 强制改为 N+1 类
+                    weak_class_id = self.noise_class_id # Force to N+1 class
                     is_threshold = True
                     self.threshold_sample_ids.append(global_col_counter)
                 
@@ -291,15 +292,15 @@ class MultiPLLDataset:
                 table_id,
                 len(table_pll_instances),
                 token_ids,              # input_ids
-                token_ids_bt,           # input_ids_bt [新增]
+                token_ids_bt,           # input_ids_bt [new]
                 weak_label_tensor,
                 class_ids_tensor,
                 cls_indexes,            # cls_indexes
-                cls_indexes_bt,         # cls_indexes_bt [新增]
+                cls_indexes_bt,         # cls_indexes_bt [new]
                 candidate_labels_per_col,
                 col_indices_tensor,
                 global_col_indices_tensor,
-                is_threshold_tensor # [新增] 用于 Trainer 区分                
+                is_threshold_tensor # [new] for Trainer to distinguish
             ])
         
         self.table_df = pd.DataFrame(
@@ -308,19 +309,19 @@ class MultiPLLDataset:
                 "table_id",
                 "num_col",
                 "data_tensor",      # input_ids
-                "data_tensor_bt",   # input_ids_bt [新增]
+                "data_tensor_bt",   # input_ids_bt [new]
                 "weak_label_tensor",
                 "label_tensor",
                 "cls_indexes",
-                "cls_indexes_bt",   # [新增]
+                "cls_indexes_bt",   # [new]
                 "candidate_labels",
                 "col_indices",
                 "global_col_indices",
-                "is_threshold" # [新增]                
+                "is_threshold" # [new] for Trainer to distinguish
             ],
         )
 
-        # 记录总样本数供 Trainer 使用
+        # Record total samples for Trainer
         self.num_samples = global_col_counter
         print(f"[Dataset] Built with {len(self.table_df)} tables, {global_col_counter} cols.")
         if self.use_aum:
@@ -328,61 +329,61 @@ class MultiPLLDataset:
 
     def _get_token_ids(self, col_data_list: List[str], augment: bool = False) -> List[int]:
         """
-        序列化并 Tokenize。
-        Augment 策略: Random Shuffle + 15% Dropout
+        Serialize and tokenize.
+        Augment strategy: Random Shuffle + 15% Dropout
         """
-        # 复制数据，避免修改原引用
+        # Copy data to avoid modifying the original reference
         vals = col_data_list[:]
-        
+
         if augment and len(vals) > 0:
             # 1. Shuffle
             random.shuffle(vals)
-            # 2. Dropout (保留 85%)
+            # 2. Dropout (keep 85%)
             if len(vals) > 1:
                 keep_n = max(1, int(len(vals) * 0.85))
                 vals = vals[:keep_n]
-        
+
         col_str = " ".join(vals) if vals else ""
-        
+
         # Tokenize
         token_ids = self.tokenizer.encode(
             col_str,
-            add_special_tokens=True, # 自动加 [CLS] ... [SEP]
+            add_special_tokens=True, # Automatically add [CLS] ... [SEP]
             max_length=self.max_length + 2,
             truncation=True
         )
         return token_ids
 
     def _calculate_cls_indexes(self, token_ids_list: List[List[int]]) -> torch.Tensor:
-        """根据 Token 列表长度计算 CLS 位置"""
+        """Calculate CLS positions based on token list lengths"""
         lengths = np.array([len(x) for x in token_ids_list])
         
         if "bert" in self.model_name:
-            # BERT: CLS 在开头
+            # BERT: CLS at the beginning
             # [CLS] A [SEP], [CLS] B [SEP] ...
             # 0, len(A), len(A)+len(B)...
             cls_indices = [0] + np.cumsum(lengths).tolist()[:-1]
             return torch.LongTensor(cls_indices)
-            
+
         elif "qwen" in self.model_name:
-            # Causal LM: 这里的 pooling 通常取最后一个 token
+            # Causal LM: Pooling usually takes the last token
             # len(A)-1, len(A)+len(B)-1 ...
             last_indices = np.cumsum(lengths) - 1
             return torch.LongTensor(last_indices)
         else:
-            # 默认按 BERT 处理
+            # Default to BERT processing
             cls_indices = [0] + np.cumsum(lengths).tolist()[:-1]
             return torch.LongTensor(cls_indices)
 
     def _label_to_class_id(self, label):
-        # 允许 label 传入为 str 或 int（索引）
+        # Allow label to be str or int (index)
         if isinstance(label, (int, np.integer)):
             return int(label) if 0 <= int(label) < len(self.type_ontology) else 0
         try:
             label_index = self.type_ontology.index(str(label))
             return label_index
         except ValueError:
-            # 如果 label 是数字形式的字符串，尝试解析
+            # If label is a numeric string, try to parse it
             if isinstance(label, str) and label.isdigit():
                 idx = int(label)
                 return idx if 0 <= idx < len(self.type_ontology) else 0
@@ -396,7 +397,7 @@ class MultiPLLDataset:
 
         return {
             "data": row["data_tensor"],              # input_ids
-            "data_bt": row["data_tensor_bt"],        # input_ids_bt [新增]
+            "data_bt": row["data_tensor_bt"],        # input_ids_bt [new]
             "weak_labels": row["weak_label_tensor"].flatten(),
             "labels": row["label_tensor"].flatten(),
             "is_threshold": row["is_threshold"].flatten(),
@@ -404,26 +405,26 @@ class MultiPLLDataset:
             "col_idx": row["col_indices"],
             "global_col_indices": row["global_col_indices"],
             "cls_indexes": row["cls_indexes"],
-            "cls_indexes_bt": row["cls_indexes_bt"], # [新增]
+            "cls_indexes_bt": row["cls_indexes_bt"], # [new]
             "candidate_labels": row["candidate_labels"],
         }
 
     def _convert_table_instances(self, table_instances: List[TableInstance]) -> List[PllDataInstance]:
-        """将 TableInstance 转为 PllDataInstance，便于与训练数据一致处理。"""
+        """Convert TableInstance to PllDataInstance for consistent processing with training data."""
         pll_list = []
         for table_instance in table_instances:
             table_df = table_instance.table
             labels = getattr(table_instance, "labels", {}) or {}
             col_indices = getattr(table_instance, "col_indices", None)
 
-            # 若未提供 col_indices，按顺序生成
+            # If col_indices not provided, generate sequentially
             if not col_indices or len(col_indices) != len(table_df.columns):
                 col_indices = list(range(len(table_df.columns)))
 
             for idx, col_name in enumerate(table_df.columns):
                 label_val = labels.get(col_name)
                 label_text = self._normalize_label_value(label_val)
-                # 若缺失标签，用列名占位，避免空候选
+                # If label is missing, use column name as placeholder to avoid empty candidates
                 column_label = label_text if label_text is not None else col_name
                 candidate_set = [column_label] if column_label is not None else []
 
@@ -437,13 +438,13 @@ class MultiPLLDataset:
         return pll_list
 
     def _normalize_label_value(self, label_val):
-        """将标签值统一为 ontology 中的名字，支持数字索引/字符串。"""
+        """Normalize label value to ontology name, supporting numeric index/string."""
         if label_val is None:
             return None
-        # 数字索引
+        # Numeric index
         if isinstance(label_val, (int, np.integer)):
             return self.type_ontology[label_val] if 0 <= label_val < len(self.type_ontology) else str(label_val)
-        # 字符串索引
+        # String index
         if isinstance(label_val, str) and label_val.isdigit():
             idx = int(label_val)
             return self.type_ontology[idx] if 0 <= idx < len(self.type_ontology) else label_val
@@ -456,9 +457,9 @@ class _MultiPLLDataset:
     """
     Multi-column PLL Dataset for ProDEN.
 
-    与原 MultiPLLDataset 基本一致，区别：
-      - 去掉 PoP 用的 candidate_distributions / candidate_mask 逻辑；
-      - 额外为每一列分配一个全局列索引 global_col_indices，方便 Trainer 维护全局 Q。
+    Basically consistent with the original MultiPLLDataset, differences:
+      - Remove candidate_distributions / candidate_mask logic used by PoP;
+      - Additionally assign a global column index global_col_indices for each column to facilitate Trainer's global Q maintenance.
     """
 
     def __init__(self, instances, tokenizer, max_length, device, type_ontology, config):
@@ -468,10 +469,10 @@ class _MultiPLLDataset:
         self.device = device
         self.type_ontology = type_ontology
 
-        # 统计总列数用
+        # For counting total columns
         self.num_classes = len(type_ontology)
 
-        # 按 table_id 分组
+        # Group by table_id
         table_groups = {}
         for pll_instance in instances:
             table_id = pll_instance.table_id
@@ -480,13 +481,13 @@ class _MultiPLLDataset:
             table_groups[table_id].append(pll_instance)
 
         data_list = []
-        global_col_counter = 0  # 全局列计数器
+        global_col_counter = 0  # Global column counter
 
         for table_id, table_pll_instances in tqdm(table_groups.items(), desc="Building ProDEN MultiPLLDataset"):
-            # 保持列顺序
+            # Maintain column order
             table_pll_instances.sort(key=lambda x: x.col_idx)
 
-            # 你原代码里有 “len(table_pll_instances) > 10 就跳过” 的防显存逻辑，这里保持
+            # Your original code had logic to skip when "len(table_pll_instances) > 10" to avoid OOM, keeping it here
             if len(table_pll_instances) > 10:
                 continue
 
@@ -497,7 +498,7 @@ class _MultiPLLDataset:
             global_col_indices = []
 
             for pll_instance in table_pll_instances:
-                # 列值文本构造
+                # Construct column value text
                 if hasattr(pll_instance.column_features, 'tolist'):
                     col_data = pll_instance.column_features.dropna().astype(str).tolist()
                 elif isinstance(pll_instance.column_features, list):
@@ -515,25 +516,25 @@ class _MultiPLLDataset:
                 )
                 token_ids_list.append(token_ids)
 
-                # 候选标签 -> class id
+                # Candidate labels -> class id
                 cand_ids = [self._label_to_class_id(label) for label in pll_instance.candidate_set]
                 candidate_labels_per_col.append(cand_ids)
-                
-                # 真标签（用于 eval）
+
+                # True label (for eval)
                 true_class_id = self._label_to_class_id(pll_instance.column_name)
                 class_ids.append(true_class_id)
 
-                # 当前列在表里的 col_idx
+                # Current column's col_idx in the table
                 col_indices.append(pll_instance.col_idx)
 
-                # 分配全局列索引
+                # Assign global column index
                 global_col_indices.append(global_col_counter)
                 global_col_counter += 1
 
-            # 把同一张表所有列的 token 串起来
+            # Concatenate tokens for all columns in the same table
             token_ids = torch.LongTensor(reduce(operator.add, token_ids_list)).to(device)
 
-            # CLS 位置（按你的 config 的模型类型选择）
+            # CLS positions (selected based on your config's model type)
             cls_index_list = [0] + np.cumsum(
                 np.array([len(x) for x in token_ids_list])
             ).tolist()[:-1]
@@ -601,7 +602,7 @@ class _MultiPLLDataset:
             "label": row["label_tensor"].flatten(),          # [num_cols]
             "table_id": row["table_id"],
             "col_idx": row["col_indices"],                  # [num_cols]
-            "global_col_indices": row["global_col_indices"],# [num_cols] 全局列索引
+            "global_col_indices": row["global_col_indices"],# [num_cols] global column indices
             "cls_indexes": row["cls_indexes"],              # [num_cols]
             "candidate_labels": row["candidate_labels"],    # List[List[int]]
         }
@@ -631,7 +632,7 @@ class _MultiPLLDataset:
             # Sort by col_idx to maintain order
             table_pll_instances.sort(key=lambda x: x.col_idx)
             
-            # 避免爆显存
+            # Avoid OOM
             if len(table_pll_instances) > 10:
                 continue
             
@@ -912,7 +913,7 @@ class TablewiseDataset:
             table_df = table_instance.table
             labels = table_instance.labels
 
-            # 避免爆显存
+            # Avoid OOM
             if len(table_instance.table.columns) > 10:
                 continue
             

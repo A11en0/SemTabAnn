@@ -216,9 +216,9 @@ def main():
             device='cpu',
             type_ontology=type_ontology,
             config=config,
-            threshold_ratio=0.1 # <--- 设定 1% 的样本作为 AUM 阈值锚点
+            threshold_ratio=0.1 # Set 1% of samples as AUM threshold anchors
         )
-        
+
         test_dataset = MultiPLLDataset(
             instances=test_table_instances,
             tokenizer=tokenizer,
@@ -226,7 +226,7 @@ def main():
             device='cpu',
             type_ontology=type_ontology,
             config=config,
-            threshold_ratio=0.0  # 测试集不注入噪声
+            threshold_ratio=0.0  # No noise injection for test set
         )
         valid_dataset = test_dataset
         

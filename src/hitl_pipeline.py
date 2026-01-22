@@ -25,7 +25,7 @@ except ModuleNotFoundError:
 
 def load_col_meta(col_meta_path):
     """
-    读取 col_meta.json 构建映射: g_id (int) -> meta_dict
+    Read col_meta.json to build mapping: g_id (int) -> meta_dict
     """
     print(f"📖 Loading column metadata from {col_meta_path}...")
     with open(col_meta_path, "r", encoding="utf-8") as f:
@@ -76,7 +76,7 @@ def _parse_aum_value(aum):
 # =====================================================================
 def verify_cleaning_quality(csv_path, save_dir=None):
     """
-    读取 AUM 评分文件，计算噪音检测的查准率/查全率，并生成可视化。
+    Read AUM scoring file, calculate precision/recall for noise detection, and generate visualization.
     """
     import matplotlib.pyplot as plt
     import seaborn as sns
@@ -87,7 +87,7 @@ def verify_cleaning_quality(csv_path, save_dir=None):
     print(f"📖 Loading {csv_path}...")
     df = pd.read_csv(csv_path)
     
-    # 1. 确定阈值 (只看 Threshold Samples)
+    # 1. Determine threshold (only look at Threshold Samples)
     threshold_samples = df[df['is_threshold_sample'] == True]
     if len(threshold_samples) == 0:
         print("Error: No threshold samples.")
@@ -97,21 +97,21 @@ def verify_cleaning_quality(csv_path, save_dir=None):
     print(f"✂️  Cutoff (50th percentile / median): {cutoff:.4f}")
     
     # cutoff = -1.0
-    # 2. 准备数据
+    # 2. Prepare data
     real_data = df[df['is_threshold_sample'] == False].copy()
-    
-    # 真实情况 (Ground Truth)
+
+    # Ground Truth
     real_data['is_actually_noise'] = (real_data['train_label'] != real_data['gt_label'])
-    # AUM 预测 (Prediction)
+    # AUM Prediction
     real_data['predicted_as_noise'] = (real_data['aum'] <= cutoff)
-    
-    # 3. 计算混淆矩阵元素
+
+    # 3. Calculate confusion matrix elements
     tp = len(real_data[(real_data['predicted_as_noise'] == True) & (real_data['is_actually_noise'] == True)])
     fp = len(real_data[(real_data['predicted_as_noise'] == True) & (real_data['is_actually_noise'] == False)])
     fn = len(real_data[(real_data['predicted_as_noise'] == False) & (real_data['is_actually_noise'] == True)])
     tn = len(real_data[(real_data['predicted_as_noise'] == False) & (real_data['is_actually_noise'] == False)])
     
-    # 4. 指标计算
+    # 4. Calculate metrics
     total_removed = tp + fp
     precision = tp / total_removed if total_removed > 0 else 0.0
     recall = tp / (tp + fn) if (tp + fn) > 0 else 0.0
@@ -122,8 +122,8 @@ def verify_cleaning_quality(csv_path, save_dir=None):
     print(f"   Actually Noisy: {tp + fn} | Actually Clean: {tn + fp}")
     print(f"   Removed by AUM: {total_removed} (TP={tp}, FP={fp})")
     print("-" * 30)
-    print(f"   ✅ Precision (查准率): {precision:.2%} (被删掉的数据里，多少是真的噪音)")
-    print(f"   ✅ Recall    (查全率): {recall:.2%} (所有的噪音里，你抓出了多少)")
+    print(f"   ✅ Precision: {precision:.2%} (of deleted data, how much is real noise)")
+    print(f"   ✅ Recall    : {recall:.2%} (of all noise, how much was captured)")
     
     if fp > 0:
         print("\n⚠️  WARNING: You deleted useful data (Hard Samples)!")
@@ -131,39 +131,39 @@ def verify_cleaning_quality(csv_path, save_dir=None):
         print(hard_samples[['global_col_indices', 'aum', 'train_label', 'gt_label']].head())
 
     # =========================================================
-    # 📊 可视化部分 (Visualization)
+    # 📊 Visualization
     # =========================================================
     sns.set_theme(style="whitegrid")
     fig, axes = plt.subplots(1, 2, figsize=(18, 7))
 
-    # --- 图 1: AUM 分布直方图 (Distribution) ---
+    # --- Figure 1: AUM Distribution Histogram ---
     ax_hist = axes[0]
-    
-    # 分离数据用于画图
+
+    # Separate data for plotting
     clean_aum = real_data[real_data['is_actually_noise'] == False]['aum']
     noisy_aum = real_data[real_data['is_actually_noise'] == True]['aum']
     threshold_aum = threshold_samples['aum']
 
-    # 画分布 (Hist + KDE)
-    sns.histplot(clean_aum, color="green", label=f'Actual Clean (N={len(clean_aum)})', 
+    # Plot distribution (Hist + KDE)
+    sns.histplot(clean_aum, color="green", label=f'Actual Clean (N={len(clean_aum)})',
                  kde=True, stat="density", element="step", alpha=0.3, ax=ax_hist)
-    sns.histplot(noisy_aum, color="red", label=f'Actual Noise (N={len(noisy_aum)})', 
+    sns.histplot(noisy_aum, color="red", label=f'Actual Noise (N={len(noisy_aum)})',
                  kde=True, stat="density", element="step", alpha=0.3, ax=ax_hist)
-    
-    # 画阈值样本的分布 (参考线)
+
+    # Plot threshold sample distribution (reference line)
     sns.kdeplot(threshold_aum, color="gray", linestyle="--", label='Threshold Samples (Pure Noise)', ax=ax_hist)
 
-    # 画 Cutoff 线
+    # Plot Cutoff line
     ax_hist.axvline(cutoff, color='black', linestyle='-', linewidth=2, label=f'Cutoff ({cutoff:.2f})')
-    
-    # 标注区域
+
+    # Annotate regions
     ax_hist.set_title(f"AUM Distribution: Precision={precision:.2%} | Recall={recall:.2%}", fontsize=14)
     ax_hist.set_xlabel("AUM Score")
     ax_hist.set_ylabel("Density")
     ax_hist.legend()
     
-    # 在图上标注 FP 区域 (误删区)
-    # 只要绿色分布跑到了黑线左边，那就是误删
+    # Annotate FP region (false deletion area) on the plot
+    # If green distribution extends to the left of the black line, it's a false deletion
     xlims = ax_hist.get_xlim()
     ylims = ax_hist.get_ylim()
     ax_hist.text(cutoff - (abs(cutoff)*0.1), ylims[1]*0.8, "Predicted NOISE\n(Remove)", 
@@ -171,23 +171,23 @@ def verify_cleaning_quality(csv_path, save_dir=None):
     ax_hist.text(cutoff + (abs(cutoff)*0.1), ylims[1]*0.8, "Predicted CLEAN\n(Keep)", 
                  horizontalalignment='left', color='darkgreen', fontweight='bold')
     
-    # --- 图 2: 混淆矩阵 (Confusion Matrix) ---
+    # --- Figure 2: Confusion Matrix ---
     ax_cm = axes[1]
-    
-    # 构建矩阵数据
+
+    # Build matrix data
     cm_data = np.array([[tn, fp], [fn, tp]])
-    # 标签
-    labels = [['TN (Kept Clean)', 'FP (Deleted Clean)\n⚠️ "Hard Samples"'], 
+    # Labels
+    labels = [['TN (Kept Clean)', 'FP (Deleted Clean)\n⚠️ "Hard Samples"'],
               ['FN (Missed Noise)', 'TP (Deleted Noise)\n✅ "Success"']]
-    
-    # 归一化颜色便于观察 (按行归一化，看召回情况)
-    sns.heatmap(cm_data, annot=np.array(labels), fmt='', cmap='Blues', 
+
+    # Normalize colors for visibility (row normalization for recall)
+    sns.heatmap(cm_data, annot=np.array(labels), fmt='', cmap='Blues',
                 annot_kws={'size': 12, 'weight': 'bold'}, cbar=False, ax=ax_cm)
-    
-    # 在热力图上覆盖具体数值
+
+    # Overlay actual counts on heatmap
     for i in range(2):
         for j in range(2):
-            ax_cm.text(j+0.5, i+0.7, f"Count: {cm_data[i, j]}", 
+            ax_cm.text(j+0.5, i+0.7, f"Count: {cm_data[i, j]}",
                        ha="center", va="center", color="black", fontsize=11)
 
     ax_cm.set_title("Cleaning Confusion Matrix", fontsize=14)
@@ -196,7 +196,7 @@ def verify_cleaning_quality(csv_path, save_dir=None):
     ax_cm.set_ylabel("Actual Ground Truth")
     ax_cm.set_yticklabels(['Clean Data', 'Noisy Data'])
 
-    # 保存
+    # Save
     save_path = os.path.join(save_dir, 'aum_analysis_dashboard.png')
     plt.tight_layout()
     plt.savefig(save_path, dpi=300)
@@ -271,38 +271,7 @@ class ActiveLearningSampler:
                 target_gids = selected_df["global_col_indices"].tolist()
         else:
              print(f"⚠️ Unknown strategy: {strategy}")
-             return       
-
-        # if strategy == "random":
-        #     print(f"🎲 Strategy: Random Selection (Budget Ratio: {budget_ratio})")
-        #     # Exclude threshold samples, sample from remaining
-        #     candidates = df_aum[df_aum['is_threshold_sample'] == False]
-        #     n_samples = int(len(candidates) * budget_ratio)
-            
-        #     if n_samples > 0:
-        #         selected_df = candidates.sample(n=n_samples, random_state=42)
-        #         target_gids = selected_df["global_col_indices"].tolist()
-        #     else:
-        #         print("⚠️ Budget too small, selecting 0 samples.")
-        
-        # # 🔄 AUM Strategy: Select samples below threshold
-        # elif strategy == "aum":
-        #     print(f"📉 Strategy: AUM (Threshold: {self.aum})")
-        #     if self.aum is None:
-        #         raise ValueError("AUM threshold must be provided for 'aum' strategy.")
-        #     high_risk_df = df_aum[(df_aum['is_threshold_sample'] == False) & (df_aum['aum'] < self.aum)]
-        #     target_gids = high_risk_df["global_col_indices"].tolist()
-        # else:
-        #      print(f"⚠️ Unknown strategy: {strategy}")
-        #      return        
-        
-        # else:
-        #     # Original AUM logic
-        #     print(f"📉 Strategy: AUM (Threshold: {self.aum})")
-        #     if self.aum is None:
-        #         raise ValueError("AUM threshold must be provided for 'aum' strategy.")
-        #     high_risk_df = df_aum[(df_aum['is_threshold_sample'] == False) & (df_aum['aum'] < self.aum)]
-        #     target_gids = high_risk_df["global_col_indices"].tolist()
+             return
         
         if not target_gids:
             print("⚠️ No samples selected.")
@@ -345,7 +314,6 @@ class ActiveLearningSampler:
             col_name = t_instance.table.columns[cidx]
             vals = t_instance.table.iloc[:, cidx].dropna().astype(str).tolist()[:10]
             col_str = serialize_df_to_string(t_instance.table[[col_name]], sample_size=10)
-            # current_label = list(t_instance.labels.keys())[cidx]
 
             texts.append(col_str)
             sample_metadata.append({
@@ -353,7 +321,7 @@ class ActiveLearningSampler:
                 "table_id": tid,
                 "col_idx": cidx,
                 "col_name": col_name,
-                "ground_truth": meta.get("ground_truth_id"), # 保留 GT ID
+                "ground_truth": meta.get("ground_truth_id"), # Keep GT ID
                 "current_label": meta.get("pseudo_label_id"),
                 "values": vals
             })
@@ -365,10 +333,10 @@ class ActiveLearningSampler:
                 embeds_buffer[idx] = None
 
         # if strategy == "random":
-        if strategy in ["random", "entropy", "high_loss"]:            
+        if strategy in ["random", "entropy", "high_loss"]:
              selected_samples = sample_metadata
-        else:        
-            # 过滤掉缺失 embedding 的样本
+        else:
+            # Filter out samples with missing embeddings
             filtered = [(emb, meta) for emb, meta in zip(embeds_buffer, sample_metadata) if emb is not None]
             if not filtered:
                 # print("❌ No embeddings available after filtering missing entries.")
@@ -376,8 +344,8 @@ class ActiveLearningSampler:
                 selected_samples = sample_metadata # Fallback
             else:
                 embeddings, meta_subset = zip(*filtered)
-                embeddings = np.array(embeddings)                
-                # Only cluster if we have significantly more samples than clusters                
+                embeddings = np.array(embeddings)
+                # Only cluster if we have significantly more samples than clusters
                 n_clusters = min(num_clusters, len(embeddings))
                 if n_clusters < len(embeddings):
                     kmeans = KMeans(n_clusters=n_clusters, random_state=42, n_init=10)
@@ -387,19 +355,10 @@ class ActiveLearningSampler:
                 else:
                     selected_samples = list(meta_subset)
             
-            # embeddings, sample_metadata = zip(*filtered)
-            # embeddings = np.array(embeddings)
-            # kmeans = KMeans(n_clusters=min(num_clusters, len(embeddings)), random_state=42, n_init=10)
-            # kmeans.fit(embeddings)
-            # closest, _ = pairwise_distances_argmin_min(kmeans.cluster_centers_, embeddings)
-            
-            # selected_samples = [sample_metadata[idx] for idx in closest]
-
         with open(output_path, "w", encoding="utf-8") as f:
             json.dump(selected_samples, f, indent=2, ensure_ascii=False)
         
         print(f"✅ Saved {len(selected_samples)} samples to {output_path}")
-
 
 class HITLCorrector:
     def __init__(self, config, aum=0, cache_dir=".llm_cache", col_meta_path=None, train_embedding_path=None, save_dir=None):
@@ -438,7 +397,7 @@ class HITLCorrector:
 
     def load_human_annotations(self, annotation_path, type_ontology):
         """
-        加载人工标注 (利用 Ground Truth ID 转换)
+        Load human annotations (using Ground Truth ID for conversion)
         """
         print(f"📖 Loading human examples from {annotation_path}...")
         with open(annotation_path, "r", encoding="utf-8") as f:
@@ -446,14 +405,14 @@ class HITLCorrector:
         
         valid_examples = []
         for item in data:
-            # 逻辑修正：只要有 ground_truth 字段，就视为有效
+            # Logic correction: treat as valid if ground_truth field exists
             if "ground_truth" in item:
                 gt_id = int(item["ground_truth"])
-                # 越界检查
+                # Bounds check
                 if 0 <= gt_id < len(type_ontology):
-                    # 自动转换 ID -> Label String
+                    # Automatically convert ID -> Label String
                     item["corrected_label"] = type_ontology[gt_id]
-                    item["reason"] = "Derived from validated Ground Truth." # 自动填充理由
+                    item["reason"] = "Derived from validated Ground Truth." # Auto-fill reason
                     valid_examples.append(item)
                 else:
                     print(f"⚠️ GT ID {gt_id} out of bounds.")
@@ -463,7 +422,7 @@ class HITLCorrector:
 
     def build_human_index(self, table_instances, type_ontology):
         """
-        从原始 Table Instances 读取内容构建索引
+        Build index by reading content from original Table Instances
         """
         if faiss is None:
             raise ModuleNotFoundError("faiss is required for --step correct. Please install faiss-cpu/faiss-gpu.")
@@ -495,10 +454,10 @@ class HITLCorrector:
             real_col_name = t_inst.table.columns[col_idx]
             ex['table_text'] = serialize_df_to_string(t_inst.table, sample_size=10)
             # col_df = t_inst.table[[real_col_name]]
-            
-            # 序列化：确保检索时的 query 和 index 格式一致
+
+            # Serialization: ensure query and index formats are consistent during retrieval
             # col_str = serialize_df_to_string(col_df, sample_size=10)
-            # 更新 Example 数据，确保 Prompt 里用到的是真实数据
+            # Update Example data to ensure real data is used in Prompt
             ex['col_name'] = real_col_name
             # ex['pseudo_label'] = ...
             ex['values'] = t_inst.table.iloc[:, col_idx].dropna().astype(str).tolist()[:10]
@@ -513,7 +472,7 @@ class HITLCorrector:
             print("❌ No embeddings available for human examples.")
             return
         
-        self.human_examples = final_examples # 更新过滤后的列表
+        self.human_examples = final_examples # Update filtered list
         embs = np.array(embeddings, dtype="float32")
         faiss.normalize_L2(embs)
         
@@ -537,9 +496,9 @@ class HITLCorrector:
 
     def compute_dataset_micro_f1(self, corrections, type_ontology):
         """
-        使用修正结果重新计算全量数据集的 micro-f1。
-        - y_true: meta_map 中存在的 ground_truth_id
-        - y_pred: 优先使用修正后的标签，否则使用原 pseudo_label_id
+        Recompute micro-f1 for the full dataset using correction results.
+        - y_true: ground_truth_id existing in meta_map
+        - y_pred: prefer corrected labels, otherwise use original pseudo_label_id
         """
         label_to_id = {str(name): idx for idx, name in enumerate(type_ontology)}
         correction_map = {}
@@ -631,44 +590,6 @@ Original (wrong): "{meta['current_label']}"
 
 Correction:"""        
     
-#     def build_correction_prompt(self, meta, type_ontology, examples):
-#         onto_str = ", ".join(type_ontology)
-#         examples_str = ""
-#         for i, ex in enumerate(examples):
-#             cidx = ex.get("col_idx")
-#             col_alias = f"Column {cidx+1}" if cidx is not None else "Column"
-#             examples_str += f"""
-# --- Example {i+1} ---
-# Table Context:
-# {ex.get('table_text', 'N/A')}
-# Target: {col_alias}
-# Original: "{ex.get('pseudo_label', 'Unknown')}"
-# Correct: "{ex['corrected_label']}"
-# """
-#         # examples_str = ""
-#         target_alias = f"Column {meta.get('col_idx', '?') + 1}" if meta.get('col_idx') is not None else "Column"
-#         return f"""You are a Data Quality Expert specializing in Column Type Annotation. The current label is known to be WRONG; do NOT output it again.
-
-# Rules:
-# 1) Choose the corrected label ONLY from [Ontology].
-# 2) The field [Original] is incorrect. You must pick a DIFFERENT label if it appears in the ontology.
-# 3) Base your decision on column values and table context.
-# 4) Output JSON: {{"original_label": "...", "reason": "...", "corrected_label": "..."}}
-
-# Ontology: [{onto_str}]
-
-# Manually corrected examples (for reasoning):
-# {examples_str}
-
-# Target:
-# Table Context: 
-# {meta['table_text']}
-# Target: {target_alias}
-# Original (wrong): "{meta['current_label']}"
-
-# Correction:"""
-
-    # def run_correction(self, table_instances, col_meta_path, aum_csv_path, type_ontology, model, k=3):
     def run_correction(self, table_instances, col_meta_path, aum_csv_path, type_ontology, model, k=3, method="cot"):
         # Check if correction metrics already exist
         metrics_path = os.path.join(self.save_dir, "llm_correction_metrics.json")
@@ -733,12 +654,12 @@ Correction:"""
                 # demos = self.retrieve_examples(item['global_id'], k=k)
                 # prompt = self.build_correction_prompt(item, type_ontology, demos)
 
-                # 只有 COT 需要检索
+                # Only COT needs retrieval
                 demos = []
                 if method == "cot":
                     demos = self.retrieve_examples(item['global_id'], k=k)
-                
-                ### [MODIFIED] 传入 method
+
+                ### [MODIFIED] Pass method
                 prompt = self.build_correction_prompt(item, type_ontology, demos, method=method)
 
                 if "qwen" in model:

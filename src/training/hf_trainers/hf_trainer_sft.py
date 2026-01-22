@@ -22,8 +22,8 @@ def compute_metrics(eval_pred):
 
 class SupervisedTrainer(Trainer):
     """
-    Baseline: 仅使用随机采样的少量全监督数据进行训练。
-    不使用任何弱标签，不使用对比学习。
+    Baseline: Train using only a small amount of fully supervised data with random sampling.
+    No weak labels, no contrastive learning.
     """
     def __init__(
         self,
@@ -54,7 +54,7 @@ class SupervisedTrainer(Trainer):
         self.num_train_columns = self._compute_num_train_columns(train_dataset)
         self.labeled_mask = self._select_random_samples()
         print(f"[Baseline] Randomly selected {self.labeled_mask.sum()} samples ({self.active_budget_ratio:.1%}) for Supervised Training.")
-    
+
     def _compute_num_train_columns(self, train_dataset) -> int:
         if hasattr(train_dataset, "table_df"):
             max_gid = -1
@@ -65,7 +65,7 @@ class SupervisedTrainer(Trainer):
         return len(train_dataset)
 
     def _select_random_samples(self) -> torch.Tensor:
-        """随机生成 Mask"""
+        """Randomly generate mask"""
         mask = torch.zeros(self.num_train_columns, dtype=torch.bool, device=self.device)
         
         num_select = int(self.num_train_columns * self.active_budget_ratio)
@@ -76,9 +76,9 @@ class SupervisedTrainer(Trainer):
         indices = torch.randperm(self.num_train_columns, device=self.device)[:num_select]
         mask[indices] = True
         return mask
-    
+
     def _apply_corrected_weak_labels(self, corrected_path: str):
-        """按 global_col_indices 用修复结果覆写弱标签，文件不存在则跳过。"""
+        """Overwrite weak labels with corrected results based on global_col_indices, skip if file doesn't exist."""
         corrections = json.load(open(corrected_path, "r", encoding="utf-8"))
         ontology = self.train_dataset.type_ontology
         label_to_id = {str(name): idx for idx, name in enumerate(ontology)}
@@ -250,13 +250,13 @@ def create_hf_trainer_sft(
         logging_steps=1,
         logging_dir=config.output_dir,
         report_to=["swanlab"],
-        remove_unused_columns=False # 必须保留，否则 global_col_indices 会被丢弃
+        remove_unused_columns=False # Must keep, otherwise global_col_indices will be dropped
     )
     
     training_args.warmup_epochs = getattr(config, "warmup_epochs", 5)
     training_args.use_correct_labels = getattr(config, "use_correct_labels", False)
     training_args.use_true_label = getattr(config, "use_true_label", True)
-    training_args.active_budget_ratio = getattr(config, "active_budget_ratio", 0.2) # 5% 标注量
+    training_args.active_budget_ratio = getattr(config, "active_budget_ratio", 0.2) # 5% annotation amount
     
     trainer = SupervisedTrainer(
         model=model,
